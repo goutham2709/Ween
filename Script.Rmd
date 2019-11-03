@@ -208,6 +208,19 @@ tidy(feature_lasso_model$glmnet.fit) %>%
        subtitle = "Based on a Lasso regression to predict IMDB ratings of ~3000 movies")
 ```
 
+Which movie am i gona watch?
+
+```{r}
+horror_movies %>% 
+  filter(str_detect(genres, "Comedy"),
+                    !is.na(movie_rating),
+                    !is.na(budget),
+                    movie_rating != "PG") %>% 
+  arrange(desc(review_rating)) %>% 
+  select(title, review_rating, movie_rating, plot, director, budget, language) %>%
+  View()
+
+```
 
 
 
