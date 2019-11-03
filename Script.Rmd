@@ -1,0 +1,116 @@
+---
+title: "Ween"
+author: "Goutham"
+date: "11/3/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+theme_set(theme_light())
+
+horror_movies_raw <- horror_movies <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-10-22/horror_movies.csv")
+
+```
+
+```{r}
+horror_movies_raw %>% 
+  arrange(desc(review_rating)) %>% 
+  extract(title, "year", "\\((\\d\\d\\d\\d)\\)$", remove = FALSE, convert = TRUE) %>% 
+  filter(year >= 2005) %>% 
+  ggplot(aes(year)) +
+  geom_histogram()
+
+```
+
+Most of the movies are since 2012.
+
+```{r}
+horror_movies <- horror_movies_raw %>% 
+  arrange(desc(review_rating)) %>% 
+  extract(title, "year", "\\((\\d\\d\\d\\d)\\)$", remove = FALSE, convert = TRUE) %>% 
+  mutate(budget = parse_number(budget))
+
+horror_movies %>% 
+  count(genres, sort = TRUE)
+
+horror_movies %>% 
+  count(language, sort = TRUE)
+
+# horror_movies %>% 
+  # count(budget, sort = TRUE)
+
+horror_movies %>% 
+  ggplot(aes(budget)) + 
+  geom_histogram() +
+  scale_x_log10(label = scales::dollar)
+```
+
+
+Do movies with higher budget end up rated higher?
+```{r}
+horror_movies %>% 
+  ggplot(aes(budget, review_rating)) +
+  geom_point() + 
+  scale_x_log10(label = scales::dollar) +
+  geom_smooth(method = "lm") # Best fit regression
+```
+No relationship between budget and ratings.
+
+How about movie rating and review?
+```{r}
+horror_movies %>% 
+  mutate(movie_rating = fct_lump(movie_rating, 5),
+         movie_rating = fct_reorder(movie_rating, review_rating, na.rm = TRUE)) %>% 
+  # count(movie_rating, sort = TRUE) %>% 
+  ggplot(aes(movie_rating, review_rating)) +
+  geom_boxplot() + 
+  coord_flip()
+
+#ANOVA - Is the variance by chance?
+horror_movies %>% 
+  filter(!is.na(movie_rating)) %>% 
+  mutate(movie_rating = fct_lump(movie_rating, 5)) %>% 
+  lm(review_rating ~ movie_rating, data = .) %>% 
+  anova()
+
+# Significant F value => There is more variation in review_rating explained by movie_rating than we'd expect by chance => The variation is not by chance.
+```
+
+```{r}
+horror_movies %>% 
+  separate_rows(genres, sep = "\\| ") %>% 
+  # select(title, year, genres) %>% 
+  mutate(genre = fct_lump(genres, 5)) %>% 
+  # count(genres, sort = TRUE)
+  ggplot(aes(genre, review_rating)) +
+  geom_boxplot()
+  
+```
+
+```{r}
+horror_movies %>% 
+  mutate(plot = str_remove(plot, "Directed.*?\\. ")) %>% 
+  head() %>% 
+  pull(plot)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
