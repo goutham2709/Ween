@@ -219,7 +219,6 @@ horror_movies %>%
   arrange(desc(review_rating)) %>% 
   select(title, review_rating, movie_rating, plot, director, budget, language) %>%
   View()
-
 ```
 
 
