@@ -1,0 +1,42 @@
+---
+title: "fpad"
+author: "Goutham"
+date: "11/15/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+
+receipts <- read.csv("receipts.csv")
+bins <- read.csv("bins.csv")
+bincontent <- read.csv("bincontent.csv")
+outbound <- read.csv("outbound.csv")
+```
+
+```{r receipts}
+receipts$ï..date <- as.Date(receipts$ï..date, format = "%d-%m-%y") #Converted to date
+ecom <- receipts %>% filter(CustGroup == "ECOMMERCE")
+whole <- receipts %>% filter(CustGroup == "WHOLESALE")
+fest <- receipts %>% filter(CustGroup == "FESTIVAL")
+
+```
+
+```{r bins}
+
+```
+
+```{r bincontent}
+
+```
+
+```{r outbound}
+
+```
+

@@ -1,0 +1,58 @@
+---
+title: "Nobel Prize winners"
+author: "Goutham"
+date: "11/6/2019"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+theme_set(theme_light())
+
+nobel_winners <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winners.csv") %>% 
+  distinct(full_name, prize_year, category, .keep_all = TRUE)
+
+nobel_winner_all_pubs <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winner_all_pubs.csv")
+```
+
+```{r}
+nobel_winners %>% 
+  group_by(category, 
+        decade = 10 * (prize_year %/% 10), sort = TRUE) %>% 
+  summarize(winners = n(),
+            winners_per_year = winners / n_distinct(prize_year)) %>% 
+  ggplot(aes(decade, winners_per_year, color = category)) +
+  geom_line() + 
+  expand_limits(y = 0)
+```
+
+```{r}
+nobel_winners %>% 
+  distinct(full_name, prize_year, category) %>% 
+  group_by(full_name) %>% 
+  mutate(prizes = n(),
+         distinct_prizes = n_distinct(category)) %>% 
+  arrange(desc(prizes), full_name)
+  
+```
+
+```{r}
+nobel_winners %>% 
+  count(decade, 
+        gender = coalesce(gender, laureate_type)) %>% 
+  ggplot(aes(decade, n, fill = gender)) +
+  geom_col()
+```
+
+
+
+
+
