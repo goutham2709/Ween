@@ -1,0 +1,199 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+### Basic classification using keras
+
+## Data preparation
+
+```{r libraries}
+rm(list = ls())
+library(keras)
+
+f_mnist <- dataset_fashion_mnist()
+
+# data exploration
+str(f_mnist)
+dim(f_mnist)
+typeof(mnist)
+typeof(f_mnist$train)
+dim(f_mnist$train$x) # list of 60,000 matrices of 28x28 dim
+typeof(f_mnist$train$x)
+dim(f_mnist$test$x)
+dim(f_mnist$train$x)
+dim(f_mnist$test$y)
+```
+
+Fashion MNIST is intended as a drop-in replacement for the classic MNIST dataset—often used as the “Hello, World” of machine learning programs for computer vision. The MNIST dataset contains images of handwritten digits (0, 1, 2, etc) in an identical format to the articles of clothing we’ll use here.
+
+This guide uses Fashion MNIST for variety, and because it’s a slightly more challenging problem than regular MNIST. Both datasets are relatively small and are used to verify that an algorithm works as expected. They’re good starting points to test and debug code.
+
+```{r data split}
+c(train.images, train.lables) %<-% f_mnist$train # multi-assign operator
+c(test.images, test.lables) %<-% f_mnist$test
+```
+
+Each image is mapped to a single label. Since the class names are not included with the dataset, we’ll store them in a vector to use later when plotting the images.
+
+```{r class names}
+class.names = c('T-shirt/top',
+                'Trouser',
+                'Pullover',
+                'Dress',
+                'Coat', 
+                'Sandal',
+                'Shirt',
+                'Sneaker',
+                'Bag',
+                'Ankle boot')
+```
+
+## Data processing
+
+The data must be preprocessed before training the network. If you inspect the first image in the training set, you will see that the pixel values fall in the range of 0 to 255:
+
+```{r}
+library(tidyr)
+library(ggplot2)
+
+image.1 <- as.data.frame(train.images[1,,])
+colnames(image.1) <- seq_len(ncol(image.1))
+image.1$y <- seq_len(nrow(image.1)) # adds new column -> y
+image.1 <- gather(image.1, "x", "value", -y) # look at mini_iris example
+image.1$x <- as.integer(image.1$x) # convert x from character to an integer
+
+# Look at the image by plotting
+ggplot(image.1, aes(x = x, y = y, fill = value)) + 
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "black", na.value = NA) +
+  scale_y_reverse() +
+  theme_minimal() +
+  theme(panel.grid = element_blank()) +
+  theme(aspect.ratio = 1) +
+  xlab("") +
+  ylab("")
+```
+
+We scale these values to a range of 0 to 1 before feeding to the neural network model. For this, we simply divide by 255. It’s important that the training set and the testing set are preprocessed in the same way
+
+```{r scaling}
+train.images <- train.images / 225
+test.images <- test.images / 225
+```
+
+Display the first 25 images from the training set and display the class name below each image. Verify that the data is in the correct format and we’re ready to build and train the network.
+
+```{r data display}
+par(mfcol = c(5, 5))
+par(mar=c(0, 0, 1.5, 0), xaxs='i', yaxs='i')
+
+for(i in 1:25) {
+  img <- train.images[i,,]
+  img <- t(apply(img, 2, rev))
+  image(1:28, 1:28, img, col = gray((0:255)/255), xaxt = "n", yxat = "n,",
+        main = paste(class.names[train.lables[i] + 1]))
+}
+```
+
+## Build the model
+
+The basic building block of a neural network is the layer. Layers extract representations from the data fed into them. And, hopefully, these representations are more meaningful for the problem at hand.Most of deep learning consists of chaining together simple layers. Most layers, like layer_dense, have parameters that are learned during training.
+
+```{r setup layers}
+model <- keras_model_sequential()
+model %>% 
+  layer_flatten(input_shape = c(28, 28)) %>% 
+  layer_dense(units = 128, activation = "relu") %>% 
+  layer_dense(units = 10, activation = "softmax")
+```
+
+The first layer in this network, layer_flatten, transforms the format of the images from a 2d-array (of 28 by 28 pixels), to a 1d-array of 28 * 28 = 784 pixels. Think of this layer as unstacking rows of pixels in the image and lining them up. This layer has no parameters to learn; it only reformats the data. After the pixels are flattened, the network consists of a sequence of two dense layers. These are densely-connected, or fully-connected, neural layers. The first dense layer has 128 nodes (or neurons). The second (and last) layer is a 10-node softmax layer —this returns an array of 10 probability scores that sum to 1. Each node contains a score that indicates the probability that the current image belongs to one of the 10 digit classes.
+
+Before the model is ready for training, it needs a few more settings. These are added during the model’s compile step:
+
+Loss function — This measures how accurate the model is during training. We want to minimize this function to “steer” the model in the right direction.
+Optimizer — This is how the model is updated based on the data it sees and its loss function.
+Metrics —Used to monitor the training and testing steps. The following example uses accuracy, the fraction of the images that are correctly classified.
+```{r compile}
+model %>% compile(
+  optimizer = "adam",
+  loss = "sparse_categorical_crossentropy",
+  metric = c("accuracy")
+)
+```
+
+Training the neural network model requires the following steps:
+Feed the training data to the model — in this example, the train_images and train_labels arrays.
+The model learns to associate images and labels.
+We ask the model to make predictions about a test set — in this example, the test_images array. We verify that the predictions match the labels from the test_labels array.
+To start training, call the fit method — the model is “fit” to the training data:
+
+```{r train the model}
+model %>% fit(train.images, train.lables, epochs = 5)
+
+```
+
+## Evaluate accuracy
+
+```{r evaluate}
+score <- model %>% evaluate(test.images, test.lables)
+
+cat("Test loss: ", score$loss, "\n")
+cat("Test accuracy: ", score$acc, "\n")
+```
+
+It turns out, the accuracy on the test dataset is a little less than the accuracy on the training dataset. This gap between training accuracy and test accuracy is an example of overfitting. Overfitting is when a machine learning model performs worse on new data than on their training data.
+
+## Make predictions
+
+```{r predict}
+predictions <- model %>% predict(test.images)
+predictions[1,]
+which.max(predictions[1,])
+```
+
+A prediction is an array of 10 numbers. These describe the “confidence” of the model that the image corresponds to each of the 10 different articles of clothing. We can see which label has the highest confidence value
+
+we can also directly get the class prediction
+
+```{r}
+class.pred <- model %>% predict_classes(test.images)
+class.pred[1:20] # predicted labels
+test.lables[1:20] # original labels
+```
+
+Let’s plot several images with their predictions. Correct prediction labels are green and incorrect prediction labels are red.
+
+```{r plot}
+par(mfcol = c(5, 5))
+par(mar = c(0, 0, 1.5, 0), xaxs = "i", yaxs = "i")
+for (i in 1:25) {
+  img <- test.images[i,,]
+  img <- t(apply(img, 2, rev))
+  predicted.label <- which.max(predictions[i, ]) - 1 # subtract 1 as labels go from 0 to 9
+  true.label <- test.lables[i]
+  if(predicted.label == true.label) {
+    color <- "#008800"
+  } else {
+    color <-  "#bb0000"
+  }
+  image(1:28, 1:28, img, col = gray((0:255) / 255), xaxt = "n", yaxt = "n",
+        main = paste0(class.names[predicted.label +1], " (", class.names[true.label + 1], ")"), col.main = color)
+}
+
+```
+
+```{r predictions}
+img <- test.images[1,,, drop = FALSE]
+dim(img)
+
+predictions <- model %>% predict(img)
+
+prediction <- predictions[1,] -1
+which.max(prediction)
+
+model %>% predict_classes(img)
+```
+
