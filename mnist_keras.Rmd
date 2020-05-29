@@ -1,0 +1,127 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+####Keras MNIST deep learning model
+
+## Preparing the Data
+```{r load and explore data}
+# https://keras.rstudio.com/
+library(keras)
+
+mnist <- dataset_mnist()
+mnist
+
+typeof(mnist)
+attributes(mnist)
+typeof(mnist$test)
+typeof(mnist$train)
+typeof(mnist$train$x)
+typeof(mnist$train$y)
+mnist$train
+dim(mnist$train$x)
+dim(mnist$train$y)
+dim(mnist$test$x)
+dim(mnist$test$y)
+length(mnist$test$y) # 10,000 images with each image having 28 rows and 28 columns
+str(mnist)
+```
+
+```{r sampiling sets}
+x.train <- mnist$train$x # x is a 3-d array (images,width,height) of gray-scale values
+y.train <- mnist$train$y
+
+x.test <- mnist$test$x
+y.test <- mnist$test$y
+```
+
+To prepare the data for training we convert the 3-d arrays into matrices by reshaping width and height into a single dimension (28x28 images are flattened into length 784 vectors). Then, we convert the grayscale values from integers ranging between 0 to 255 into floating point values ranging between 0 and 1.
+
+```{r reshape}
+x.train <- array_reshape(x.train, c(nrow(x.train), 784)) # reshape 60000x28x28 to 60000x784. Array to matrix.
+x.test <- array_reshape(x.test, c(nrow(x.test), 784))
+```
+
+```{r rescale}
+x.train <- x.train / 255
+x.test <- x.test / 255
+```
+
+Note that we use the array_reshape() function rather than the dim<-() function to reshape the array. This is so that the data is re-interpreted using row-major semantics (as opposed to R’s default column-major semantics), which is in turn compatible with the way that the numerical libraries called by Keras interpret array dimensions.
+
+```{r one hot encoding}
+# https://www.quora.com/What-is-one-hot-encoding-and-when-is-it-used-in-data-science
+y.train <- to_categorical(y.train, 10)
+y.test <- to_categorical(y.test, 10)
+```
+
+## Defining the model
+
+The core data structure of Keras is a model, a way to organize layers. The simplest type of model is the Sequential model, a linear stack of layers. We begin by creating a sequential model and then adding layers using the pipe (%>%) operator
+
+```{r model}
+# https://keras.rstudio.com/articles/sequential_model.html
+model <- keras_model_sequential()
+model %>% 
+  layer_dense( units = 256, activation = "relu", input_shape = c(784)) %>% 
+  layer_dropout(rate = 0.4) %>% 
+  layer_dense(units = 128, activation = "relu") %>% 
+  layer_dropout(rate = 0.3) %>% 
+  layer_dense(units = 10, activation = "softmax")
+```
+
+The input_shape argument to the first layer specifies the shape of the input data (a length 784 numeric vector representing a gray-scale image). The final layer outputs a length 10 numeric vector (probabilities for each digit) using a softmax activation function.
+
+```{r}
+summary(model) # prints details of the model
+```
+
+Next, compile the model with appropriate loss function, optimizer, and metrics:
+
+```{r loss function, oprimizer, metrics}
+model %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_rmsprop(),
+  metrics = c("accuracy")
+)
+```
+
+
+## Training and evaluation
+Use the fit() function to train the model for 30 epochs using batches of 128 images
+```{r fit model}
+history <- model %>% fit(
+  x.train, y.train,
+  epochs = 30,
+  batch_size = 128,
+  validation_split = 0.2
+)
+
+```
+
+The history object returned by fit() includes loss and accuracy metrics which we can plot
+
+```{r}
+history
+plot(history)
+```
+
+Evaluate the model’s performance on the test data
+
+```{r evaluate performance}
+model %>% evaluate(x.test, y.test)
+```
+
+Generate predictions on new data
+
+```{r}
+model %>% predict_classes(x.test)
+model
+```
+
+
+
+
+
